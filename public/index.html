@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Scenez Lobby 🎨</title>
+  <link rel="stylesheet" href="style.css" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron&family=Montserrat:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">🎬 Scenez</h1>
+    <p class="subtitle">Draw. Laugh. Repeat.</p>
+
+    <div class="form">
+      <input id="name" placeholder="Your name" autocomplete="off" />
+      <input
+        id="room"
+        placeholder="Room code (e.g., AB12)"
+        autocomplete="off"
+      />
+      <button onclick="joinRoom()">Join Room</button>
+      <button onclick="createRoom()" type="button">Create Room</button>
+    </div>
+
+    <div class="players-list">
+      <h3>🎮 Players in Room:</h3>
+      <ul id="players"></ul>
+    </div>
+
+    <!-- Start Game Button (always visible) -->
+    <div class="start-button-container" style="text-align: center; margin-top: 20px;">
+      <button id="startGameBtn" onclick="startManualGame()">Start Game</button>
+    </div>
+  </div>
+
+  <div class="bg-anim">
+    <div></div><div></div><div></div><div></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+
+  <script>
+    const socket = io();
+
+    socket.on('room-update', (players) => {
+      const list = document.getElementById('players');
+      if (list) {
+        list.innerHTML = '';
+        players.forEach(p => {
+          const li = document.createElement('li');
+          li.textContent = p.name;
+          list.appendChild(li);
+        });
+      }
+    });
+
+    function startManualGame() {
+      const room = document.getElementById('room').value.trim().toUpperCase();
+      const playerCount = document.querySelectorAll('#players li').length;
+
+      if (playerCount < 3) {
+        alert('You need at least 3 players to start the game.');
+        return;
+      }
+
+      if (room) {
+        socket.emit('start-game-manual', room);
+      }
+    }
+  </script>
+</body>
+</html>
