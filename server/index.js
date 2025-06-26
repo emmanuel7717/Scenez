@@ -6,73 +6,91 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const rooms = {}; // roomCode -> { players: [], gameStarted: false }
+const rooms = {}; // roomCode -> { players: [], gameStarted: false, category: null }
 
 const categories = {
-  "Alien Invasion": [
-    "Aliens land", "Humans react", "Military responds",
-    "Aliens retaliate", "Big battle", "Peace is achieved"
+  "Fruits": [
+    "Apple",
+    "Banana",
+    "Orange",
+    "Strawberry",
+    "Watermelon slice",
+    "Grapes",
+    "Pineapple"
   ],
-  "Haunted House": [
-    "Creepy door creaks open", "Ghost appears", "Scream in the night",
-    "Search for the ghost", "Discover hidden room", "Escape the house"
+  "Simple Animals": [
+    "Cat",
+    "Dog",
+    "Fish",
+    "Bird",
+    "Turtle",
+    "Frog",
+    "Rabbit"
   ],
-  "Underwater Adventure": [
-    "Dive into the deep sea", "Discover a sunken ship", "Meet a giant squid",
-    "Find hidden treasure", "Escape a dangerous shark", "Return safely to surface"
+  "Common Foods": [
+    "Pizza slice",
+    "Burger",
+    "Hot dog",
+    "Ice cream cone",
+    "Cupcake",
+    "French fries",
+    "Donut"
   ],
-  "Space Station": [
-    "Launch into orbit", "Fix broken equipment", "Alien signal detected",
-    "Spacewalk repair mission", "Meteor shower danger", "Safe return to Earth"
+  "Nature Elements": [
+    "Tree",
+    "Flower",
+    "Cloud",
+    "Sun",
+    "Leaf",
+    "Mountain",
+    "Rain"
   ],
-  "Medieval Quest": [
-    "Meet the king", "Fight off bandits", "Find a magical sword",
-    "Rescue the princess", "Defeat the dragon", "Celebrate victory feast"
+  "Household Objects": [
+    "Lamp",
+    "Chair",
+    "Clock",
+    "Cup",
+    "Shoe",
+    "Backpack",
+    "Phone"
   ],
-  "Jungle Safari": [
-    "Enter the jungle", "Spot wild animals", "Cross a rickety bridge",
-    "Find ancient ruins", "Encounter a tribe", "Return to camp"
+  "Funny Accessories": [
+    "Sunglasses",
+    "Hat",
+    "Bowtie",
+    "Mustache",
+    "Crazy socks",
+    "Necklace",
+    "Watch"
   ],
-  "Robot Factory": [
-    "Factory assembly line", "Robot malfunction", "Fix the robot",
-    "Escape factory shutdown", "Robot rebellion", "Restore power"
+  "Transportation": [
+    "Bicycle",
+    "Car",
+    "Bus",
+    "Boat",
+    "Airplane",
+    "Scooter",
+    "Skateboard"
   ],
-  "Pirate Adventure": [
-    "Find the treasure map", "Sail through storms", "Fight enemy pirates",
-    "Discover hidden island", "Escape from sea monsters", "Buried treasure found"
-  ],
-  "Wild West": [
-    "Enter the town", "Showdown at high noon", "Train robbery",
-    "Rescue the sheriff", "Horse chase", "Celebrate at the saloon"
-  ],
-  "Superhero Mission": [
-    "City under attack", "Save civilians", "Fight supervillain",
-    "Team up with heroes", "Defuse the bomb", "Victory parade"
-  ],
-  "Mystery Detective": [
-    "Crime scene investigation", "Find clues", "Interrogate suspects",
-    "Discover secret passage", "Catch the culprit", "Solve the mystery"
-  ],
-  "Fantasy Kingdom": [
-    "Explore enchanted forest", "Meet the wizard", "Battle evil sorcerer",
-    "Find the magic crystal", "Protect the kingdom", "Coronation ceremony"
-  ],
-  "Time Travel": [
-    "Enter the time machine", "Ancient civilization", "Future city",
-    "Avoid paradox", "Fix the timeline", "Return to present"
-  ],
-  "Circus Show": [
-    "Welcome to the circus", "Perform daring acrobatics", "Tame the lions",
-    "Clown comedy act", "Big top finale", "Audience applause"
+  "Famous Anime Characters": [
+    "Goku",
+    "Naruto",
+    "Sailor Moon",
+    "Pikachu",
+    "Luffy",
+    "Totoro",
+    "Astro Boy"
   ]
 };
+
+
 
 io.on('connection', (socket) => {
   console.log('New user connected:', socket.id);
 
-  socket.on('join-room', ({ roomCode, name }) => {
+  socket.on('join-room', ({ roomCode, name, avatar }) => {
     if (!rooms[roomCode]) {
-      rooms[roomCode] = { players: [], gameStarted: false };
+      rooms[roomCode] = { players: [], gameStarted: false, category: null };
     }
 
     const room = rooms[roomCode];
@@ -87,10 +105,24 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.players.push({ id: socket.id, name, drawing: null });
+    // Check if avatar already taken by another player in this room
+    if (room.players.some(p => p.avatar === avatar)) {
+      socket.emit('avatar-taken', 'This avatar is already taken in this room. Pick another!');
+      return;
+    }
+
+    // Assign playerNumber as index + 1 (join order)
+    const playerNumber = room.players.length + 1;
+
+    room.players.push({ id: socket.id, name, avatar, drawing: null, playerNumber });
     socket.join(roomCode);
 
-    io.to(roomCode).emit('room-update', room.players.map(p => ({ name: p.name })));
+    // Emit updated room players list with exact avatars selected
+    io.to(roomCode).emit('room-update', room.players.map(p => ({
+      name: p.name,
+      avatar: `${p.avatar} ${p.playerNumber}`, // show avatar + number
+      playerNumber: p.playerNumber
+    })));
 
     if (room.players.length === 6 && !room.gameStarted) {
       startGameForRoom(roomCode);
@@ -100,7 +132,6 @@ io.on('connection', (socket) => {
   socket.on('start-game-manual', (roomCode) => {
     const room = rooms[roomCode];
     if (!room || room.players.length < 3 || room.gameStarted) return;
-
     startGameForRoom(roomCode);
   });
 
@@ -113,6 +144,7 @@ io.on('connection', (socket) => {
     const categoryNames = Object.keys(categories);
     const chosenCategory = categoryNames[Math.floor(Math.random() * categoryNames.length)];
     const scenes = categories[chosenCategory];
+    room.category = chosenCategory;
 
     room.players.forEach((player, i) => {
       player.assignedScene = scenes[i];
@@ -120,7 +152,12 @@ io.on('connection', (socket) => {
 
     io.to(roomCode).emit('start-game', {
       category: chosenCategory,
-      players: room.players.map(p => ({ name: p.name, assignedScene: p.assignedScene })),
+      players: room.players.map(p => ({
+        name: p.name,
+        avatar: `${p.avatar} ${p.playerNumber}`,
+        assignedScene: p.assignedScene,
+        playerNumber: p.playerNumber
+      })),
     });
   }
 
@@ -136,15 +173,12 @@ io.on('connection', (socket) => {
     if (room.players.every(p => p.drawing)) {
       const slides = room.players.map(p => ({
         name: p.name,
+        avatar: `${p.avatar} ${p.playerNumber}`,
         assignedScene: p.assignedScene,
         imageData: p.drawing
       }));
 
-      const category = room.players[0].assignedScene ? Object.keys(categories).find(cat =>
-        categories[cat].includes(room.players[0].assignedScene)
-      ) : 'Your Story';
-
-      io.to(roomCode).emit('start-slideshow', { category, slides });
+      io.to(roomCode).emit('start-slideshow', { category: room.category, slides });
     }
   });
 
@@ -154,7 +188,17 @@ io.on('connection', (socket) => {
       const index = room.players.findIndex(p => p.id === socket.id);
       if (index !== -1) {
         room.players.splice(index, 1);
-        io.to(roomCode).emit('room-update', room.players.map(p => ({ name: p.name })));
+
+        // Reassign playerNumbers to keep consistent order
+        room.players.forEach((p, i) => {
+          p.playerNumber = i + 1;
+        });
+
+        io.to(roomCode).emit('room-update', room.players.map(p => ({
+          name: p.name,
+          avatar: `${p.avatar} ${p.playerNumber}`,
+          playerNumber: p.playerNumber
+        })));
       }
     }
   });
