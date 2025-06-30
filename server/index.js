@@ -203,8 +203,9 @@ io.on('connection', (socket) => {
 });
 
 app.use(express.static('public'));
+// ... all your existing code ...
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+  console.log(`Server started on http://localhost:${PORT}`);
 });

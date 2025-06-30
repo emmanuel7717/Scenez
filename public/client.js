@@ -203,35 +203,191 @@ function startSlideshow(category, slides) {
     drawStep();
   }
 
-  // Show slides sequentially with narration, then the end screen
+  // Show slides sequentially with narration, then the end screen and voting
   function showSlide(i) {
     if (i === slides.length) {
-      // All slides shown — show The End
+      // All slides shown — show The End + Voting phase
       titleEl.textContent = '🎉 The End!';
       authorEl.textContent = '';
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       [...playerList.children].forEach(li => li.classList.remove('hover-highlight'));
 
-      speakText('The End', () => {
-        const backBtn = document.createElement('button');
-        backBtn.textContent = '⬅ Back to Menu';
-        backBtn.style.position = 'absolute';
-        backBtn.style.top = '20px';
-        backBtn.style.right = '20px';
-        backBtn.style.padding = '12px 24px';
-        backBtn.style.fontSize = '1rem';
-        backBtn.style.border = 'none';
-        backBtn.style.borderRadius = '8px';
-        backBtn.style.background = '#00f2fe';
-        backBtn.style.color = '#000';
-        backBtn.style.cursor = 'pointer';
-        backBtn.style.fontWeight = 'bold';
-        backBtn.addEventListener('click', () => location.reload());
-        document.body.appendChild(backBtn);
+      // Clear previous controls
+      const endControls = document.getElementById('endControls');
+      endControls.innerHTML = '';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Create voting container
+      const voteContainer = document.createElement('div');
+      voteContainer.id = 'voteContainer';
+      voteContainer.style.marginTop = '20px';
+      voteContainer.style.textAlign = 'center';
+
+      const voteTitle = document.createElement('h2');
+      voteTitle.textContent = 'Vote for the Best Drawing!';
+
+      const timerDisplay = document.createElement('p');
+      timerDisplay.id = 'voteTimer';
+      timerDisplay.style.fontWeight = 'bold';
+      timerDisplay.style.fontSize = '1.2em';
+
+      // Grid container for images
+      const grid = document.createElement('div');
+      grid.id = 'voteGrid';
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+      grid.style.gap = '15px';
+      grid.style.justifyItems = 'center';
+      grid.style.marginTop = '15px';
+
+      // Votes record
+      const votes = {}; // voterName -> votedForName
+      const voteCounts = {}; // votedForName -> count
+
+      // Current player name (to disable voting self)
+      const currentPlayerName = document.getElementById('name').value.trim();
+
+      // Create vote display below grid
+      const voteResults = document.createElement('div');
+      voteResults.id = 'voteResults';
+      voteResults.style.marginTop = '20px';
+      voteResults.style.fontSize = '1rem';
+      voteResults.style.maxHeight = '150px';
+      voteResults.style.overflowY = 'auto';
+      voteResults.style.borderTop = '1px solid #ccc';
+      voteResults.style.paddingTop = '10px';
+
+      // Back to menu button (hidden initially)
+      const backBtn = document.createElement('button');
+      backBtn.textContent = '⬅ Back to Menu';
+      backBtn.style.marginTop = '25px';
+      backBtn.style.padding = '12px 24px';
+      backBtn.style.fontSize = '1rem';
+      backBtn.style.border = 'none';
+      backBtn.style.borderRadius = '8px';
+      backBtn.style.background = '#00f2fe';
+      backBtn.style.color = '#000';
+      backBtn.style.cursor = 'pointer';
+      backBtn.style.fontWeight = 'bold';
+      backBtn.style.display = 'none';
+      backBtn.addEventListener('click', () => location.reload());
+
+      voteContainer.appendChild(voteTitle);
+      voteContainer.appendChild(timerDisplay);
+      voteContainer.appendChild(grid);
+      voteContainer.appendChild(voteResults);
+      voteContainer.appendChild(backBtn);
+      endControls.appendChild(voteContainer);
+
+      // Create grid items (drawings)
+      slides.forEach(slide => {
+        voteCounts[slide.name] = 0;
+        const card = document.createElement('div');
+        card.style.border = '3px solid transparent';
+        card.style.borderRadius = '10px';
+        card.style.cursor = 'pointer';
+        card.style.transition = 'border-color 0.3s ease, transform 0.3s ease';
+        card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+        card.title = slide.name;
+
+        const img = new Image();
+        img.src = slide.imageData || '';
+        img.alt = `Drawing by ${slide.name}`;
+        img.style.width = '180px';
+        img.style.height = '120px';
+        img.style.objectFit = 'contain';
+        img.style.borderRadius = '8px';
+
+        const label = document.createElement('p');
+        label.textContent = `${slide.avatar || '🐾'} ${slide.name}`;
+        label.style.marginTop = '6px';
+        label.style.fontWeight = '600';
+
+        card.appendChild(img);
+        card.appendChild(label);
+
+        // Vote click handler
+        card.addEventListener('click', () => {
+          if (currentPlayerName === slide.name) {
+            alert("You can't vote for yourself!");
+            return;
+          }
+          votes[currentPlayerName] = slide.name;
+          updateVotes();
+          highlightSelected();
+        });
+
+        grid.appendChild(card);
       });
+
+      function highlightSelected() {
+        [...grid.children].forEach(card => {
+          const name = card.title;
+          if (votes[currentPlayerName] === name) {
+            card.style.borderColor = '#00f2fe';
+            card.style.transform = 'scale(1.05)';
+            card.style.boxShadow = '0 0 12px #00f2fe';
+          } else {
+            card.style.borderColor = 'transparent';
+            card.style.transform = 'scale(1)';
+            card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+          }
+        });
+      }
+
+      function updateVotes() {
+        // Reset counts
+        Object.keys(voteCounts).forEach(name => voteCounts[name] = 0);
+        Object.values(votes).forEach(votedName => {
+          if (voteCounts[votedName] !== undefined) voteCounts[votedName]++;
+        });
+
+        // Show who voted for whom
+        voteResults.innerHTML = '<strong>Votes:</strong><br>';
+        Object.entries(votes).forEach(([voter, voted]) => {
+          voteResults.innerHTML += `<div>${voter} voted for <strong>${voted}</strong></div>`;
+        });
+      }
+
+      let voteTimeLeft = 10; // 10 seconds voting timer
+      timerDisplay.textContent = `Time left to vote: ${voteTimeLeft}s`;
+
+      const voteInterval = setInterval(() => {
+        voteTimeLeft--;
+        timerDisplay.textContent = `Time left to vote: ${voteTimeLeft}s`;
+        if (voteTimeLeft <= 0) {
+          clearInterval(voteInterval);
+          timerDisplay.textContent = 'Voting ended!';
+          finalizeVoting();
+        }
+      }, 1000);
+
+      // Allow last-second selection highlight
+      highlightSelected();
+
+      function finalizeVoting() {
+        // Disable further voting
+        [...grid.children].forEach(card => card.style.cursor = 'default');
+        // Show winners with animation
+        const maxVotes = Math.max(...Object.values(voteCounts));
+        [...grid.children].forEach(card => {
+          const name = card.title;
+          if (voteCounts[name] === maxVotes && maxVotes > 0) {
+            card.style.borderColor = '#ffd700'; // gold border
+            card.style.boxShadow = '0 0 15px 4px #ffd700';
+            card.style.transform = 'scale(1.1)';
+          } else {
+            card.style.opacity = '0.4';
+          }
+        });
+        backBtn.style.display = 'inline-block';
+      }
+
+      // No further slides
       return;
     }
 
+    // existing slide showing logic continues unchanged below...
     const slide = slides[i];
     titleEl.textContent = `Scene: ${slide.assignedScene || 'No scene assigned'}`;
     authorEl.textContent = `Drawn by ${slide.name || 'Unknown'}`;
@@ -324,7 +480,7 @@ socket.on('start-game', ({ category, players }) => {
 
   const statusEl = document.getElementById('status');
   const timerEl = document.getElementById('timer');
-  let timeLeft = 5; // 5 seconds
+  let timeLeft = 5; // Changed to 5 seconds for testing, adjust as needed
   let timerInterval = null;
 
   function updateTimer() {
@@ -347,7 +503,7 @@ socket.on('start-game', ({ category, players }) => {
         imageData: imageData
       }];
 
-      startSlideshow(category, fallbackSlides);  // <-- Changed here to use category instead of "Your Scene"
+      startSlideshow(category, fallbackSlides);
       return;
     }
 

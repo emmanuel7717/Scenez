@@ -11,7 +11,6 @@
   <div class="avatar-picker-container">
     <button id="avatarToggleBtn" title="Pick your avatar">🐾 Pick Avatar</button>
     <div id="avatarOptions" class="avatar-options hidden">
-      <!-- 10 animal avatars as buttons -->
       <button class="avatar-option" data-avatar="🐶">🐶</button>
       <button class="avatar-option" data-avatar="🐱">🐱</button>
       <button class="avatar-option" data-avatar="🦊">🦊</button>
@@ -55,12 +54,11 @@
   <script src="client.js"></script>
 
   <script>
-    // Avatar picker toggle and selection with confirmation prompt
+    // Avatar picker toggle and selection
     const avatarToggleBtn = document.getElementById('avatarToggleBtn');
     const avatarOptions = document.getElementById('avatarOptions');
     const selectedAvatarDisplay = document.getElementById('selectedAvatarDisplay');
 
-    // Load avatar from localStorage or default
     let selectedAvatar = localStorage.getItem('selectedAvatar') || '🐾';
     selectedAvatarDisplay.textContent = selectedAvatar;
 
