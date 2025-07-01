@@ -49,12 +49,27 @@
   <div class="bg-anim">
     <div></div><div></div><div></div><div></div><div></div>
   </div>
+<!-- Voting page template -->
+<template id="votingPageTemplate">
+  <div class="voting-page">
+    <div class="voting-bg"></div> <!-- ✨ Animated background layer -->
+    
+    <h1 class="title">🎨 Vote for the Best Drawing</h1>
+    <p class="subtitle">Hover and click to vote. Only one vote allowed.</p>
+    
+    <div class="gallery-grid" id="galleryGrid"></div>
+    <div id="voteResults" class="vote-results"></div>
+    
+    <button id="backToLobbyBtn" class="back-button">⬅ Back to Lobby</button>
+  </div>
+</template>
+
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
 
   <script>
-    // Avatar picker toggle and selection
+    // Avatar picker logic
     const avatarToggleBtn = document.getElementById('avatarToggleBtn');
     const avatarOptions = document.getElementById('avatarOptions');
     const selectedAvatarDisplay = document.getElementById('selectedAvatarDisplay');

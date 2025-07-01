@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const rooms = {}; // roomCode -> { players: [], gameStarted: false, category: null }
+const rooms = {}; // roomCode -> { players: [], gameStarted: false, category: null, votes: {} }
 
 const categories = {
   "Fruits": [
@@ -83,15 +83,33 @@ const categories = {
   ]
 };
 
+// Helper to reset room for next game
+function resetRoom(roomCode) {
+  const room = rooms[roomCode];
+  if (!room) return;
+  room.gameStarted = false;
+  room.category = null;
+  room.votes = {};
+  room.players.forEach(p => {
+    p.drawing = null;
+    p.assignedScene = null;
+  });
+}
+
 io.on('connection', (socket) => {
   console.log('New user connected:', socket.id);
 
   socket.on('join-room', ({ roomCode, name, avatar }) => {
     if (!rooms[roomCode]) {
-      rooms[roomCode] = { players: [], gameStarted: false, category: null };
+      rooms[roomCode] = { players: [], gameStarted: false, category: null, votes: {} };
     }
 
     const room = rooms[roomCode];
+
+    if (room.gameStarted) {
+      socket.emit('game-already-started');
+      return;
+    }
 
     if (room.players.some(p => p.name === name)) {
       socket.emit('name-taken');
@@ -103,24 +121,22 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Check if avatar already taken by another player in this room
     if (room.players.some(p => p.avatar === avatar)) {
       socket.emit('avatar-taken', 'This avatar is already taken in this room. Pick another!');
       return;
     }
 
-    // Assign playerNumber as index + 1 (join order)
     const playerNumber = room.players.length + 1;
-
-    room.players.push({ id: socket.id, name, avatar, drawing: null, playerNumber });
+    room.players.push({ id: socket.id, name, avatar, drawing: null, playerNumber, assignedScene: null });
     socket.join(roomCode);
 
-    // Emit updated room players list with exact avatars selected
     io.to(roomCode).emit('room-update', room.players.map(p => ({
       name: p.name,
-      avatar: `${p.avatar} ${p.playerNumber}`, // show avatar + number
+      avatar: `${p.avatar} ${p.playerNumber}`,
       playerNumber: p.playerNumber
     })));
+
+    console.log(`Player ${name} joined room ${roomCode}`);
 
     if (room.players.length === 6 && !room.gameStarted) {
       startGameForRoom(roomCode);
@@ -144,8 +160,10 @@ io.on('connection', (socket) => {
     const scenes = categories[chosenCategory];
     room.category = chosenCategory;
 
+    // Assign scenes to players
     room.players.forEach((player, i) => {
-      player.assignedScene = scenes[i];
+      player.assignedScene = scenes[i] || "Random Scene";
+      player.drawing = null; // Reset drawing
     });
 
     io.to(roomCode).emit('start-game', {
@@ -157,6 +175,8 @@ io.on('connection', (socket) => {
         playerNumber: p.playerNumber
       })),
     });
+
+    console.log(`Game started in room ${roomCode} with category ${chosenCategory}`);
   }
 
   socket.on('submit-drawing', ({ roomCode, imageData }) => {
@@ -177,33 +197,90 @@ io.on('connection', (socket) => {
       }));
 
       io.to(roomCode).emit('start-slideshow', { category: room.category, slides });
+
+      // After slideshow duration (e.g. 60 sec), trigger voting phase
+      setTimeout(() => {
+        io.to(roomCode).emit('start-voting', { players: room.players.map(p => ({ name: p.name, avatar: `${p.avatar} ${p.playerNumber}` })) });
+      }, 60000); // 60,000 ms = 60 seconds slideshow duration
     }
   });
 
+  // Handle voting from clients
+  socket.on('submit-vote', ({ roomCode, voterName, votedForName }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    if (!room.votes) room.votes = {};
+    room.votes[voterName] = votedForName;
+
+    // Broadcast current votes to room so clients can show who voted for whom
+    io.to(roomCode).emit('update-votes', room.votes);
+
+    // Check if all players have voted
+    if (Object.keys(room.votes).length === room.players.length) {
+      // Count votes
+      const voteCounts = {};
+      Object.values(room.votes).forEach(name => {
+        voteCounts[name] = (voteCounts[name] || 0) + 1;
+      });
+
+      // Find highest votes
+      let maxVotes = 0;
+      let winners = [];
+      for (const [name, count] of Object.entries(voteCounts)) {
+        if (count > maxVotes) {
+          maxVotes = count;
+          winners = [name];
+        } else if (count === maxVotes) {
+          winners.push(name);
+        }
+      }
+
+      io.to(roomCode).emit('voting-results', { winners, voteCounts });
+
+      // Optionally reset room to allow new game
+      resetRoom(roomCode);
+    }
+  });
+
+  // Handle client requesting to go back to lobby/menu (restart)
+  socket.on('back-to-lobby', (roomCode) => {
+    resetRoom(roomCode);
+
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    io.to(roomCode).emit('back-to-lobby');
+  });
+
   socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
     for (const roomCode in rooms) {
       const room = rooms[roomCode];
       const index = room.players.findIndex(p => p.id === socket.id);
       if (index !== -1) {
         room.players.splice(index, 1);
-
-        // Reassign playerNumbers to keep consistent order
         room.players.forEach((p, i) => {
           p.playerNumber = i + 1;
         });
-
         io.to(roomCode).emit('room-update', room.players.map(p => ({
           name: p.name,
           avatar: `${p.avatar} ${p.playerNumber}`,
           playerNumber: p.playerNumber
         })));
+
+        // If room empty, delete it
+        if (room.players.length === 0) {
+          delete rooms[roomCode];
+          console.log(`Room ${roomCode} deleted (empty)`);
+        }
+        break;
       }
     }
   });
 });
 
 app.use(express.static('public'));
-// ... all your existing code ...
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

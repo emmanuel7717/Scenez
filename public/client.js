@@ -2,6 +2,7 @@ const socket = io();
 
 let currentRoomCode = null;
 
+// Generate or retrieve a persistent device ID
 function generateDeviceId() {
   return 'dev-' + Math.random().toString(36).substr(2, 9);
 }
@@ -12,8 +13,10 @@ if (!deviceId) {
   localStorage.setItem('deviceId', deviceId);
 }
 
+// Load confirmed avatar or default
 let confirmedAvatar = localStorage.getItem('selectedAvatar') || '🐾';
 
+// Confirm avatar function with user prompt
 function confirmAvatar(avatar) {
   if (confirm(`Confirm avatar ${avatar}? One avatar per player.`)) {
     confirmedAvatar = avatar;
@@ -25,11 +28,13 @@ function confirmAvatar(avatar) {
   return false;
 }
 
+// On DOM ready, display confirmed avatar
 document.addEventListener('DOMContentLoaded', () => {
   const avatarDisplay = document.getElementById('selectedAvatarDisplay');
   if (avatarDisplay) avatarDisplay.textContent = confirmedAvatar;
 });
 
+// Join a room with name, room code, and avatar
 function joinRoom() {
   const name = document.getElementById('name').value.trim();
   const room = document.getElementById('room').value.trim().toUpperCase();
@@ -39,6 +44,7 @@ function joinRoom() {
   socket.emit('join-room', { roomCode: room, name, deviceId, avatar: selectedAvatar });
 }
 
+// Create a new room with 4-char alphanumeric code
 function createRoom() {
   const roomInput = document.getElementById('room');
   const newCode = generateRoomCode();
@@ -55,6 +61,7 @@ function generateRoomCode() {
   return code;
 }
 
+// Update player list UI with avatars
 socket.on('room-update', (players) => {
   const list = document.getElementById('players');
   if (list) {
@@ -71,6 +78,7 @@ socket.on('room-update', (players) => {
   }
 });
 
+// Manual game start validation for min 3 players
 function startManualGame() {
   const room = document.getElementById('room').value.trim().toUpperCase();
   const playerCount = document.querySelectorAll('#players li').length;
@@ -83,6 +91,7 @@ function startManualGame() {
   }
 }
 
+// Error event alerts
 socket.on('room-full', () => alert('Room is full. Please try another room code.'));
 socket.on('device-already-joined', () => alert('You have already joined this room from this device.'));
 socket.on('name-taken', () => alert('This name is already taken in the room. Please choose another.'));
@@ -134,6 +143,7 @@ function speakText(text, onEnd) {
   }
 }
 
+// Slideshow function — full code unchanged except the ending replaced
 function startSlideshow(category, slides) {
   document.body.innerHTML = `
     <div class="header-bar"><h1>Scenez</h1></div>
@@ -144,7 +154,6 @@ function startSlideshow(category, slides) {
         <canvas id="slideshowCanvas"></canvas>
         <h2 id="sceneTitle"></h2>
         <h3 id="sceneAuthor"></h3>
-        <div id="endControls" style="margin-top: 20px;"></div>
       </div>
       <div class="info-sidebar"></div>
     </div>
@@ -203,191 +212,22 @@ function startSlideshow(category, slides) {
     drawStep();
   }
 
-  // Show slides sequentially with narration, then the end screen and voting
+  // Show slides sequentially with narration, then end screen + voting
   function showSlide(i) {
     if (i === slides.length) {
-      // All slides shown — show The End + Voting phase
+      // Show "The End" for 2 seconds
       titleEl.textContent = '🎉 The End!';
       authorEl.textContent = '';
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       [...playerList.children].forEach(li => li.classList.remove('hover-highlight'));
 
-      // Clear previous controls
-      const endControls = document.getElementById('endControls');
-      endControls.innerHTML = '';
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Create voting container
-      const voteContainer = document.createElement('div');
-      voteContainer.id = 'voteContainer';
-      voteContainer.style.marginTop = '20px';
-      voteContainer.style.textAlign = 'center';
-
-      const voteTitle = document.createElement('h2');
-      voteTitle.textContent = 'Vote for the Best Drawing!';
-
-      const timerDisplay = document.createElement('p');
-      timerDisplay.id = 'voteTimer';
-      timerDisplay.style.fontWeight = 'bold';
-      timerDisplay.style.fontSize = '1.2em';
-
-      // Grid container for images
-      const grid = document.createElement('div');
-      grid.id = 'voteGrid';
-      grid.style.display = 'grid';
-      grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
-      grid.style.gap = '15px';
-      grid.style.justifyItems = 'center';
-      grid.style.marginTop = '15px';
-
-      // Votes record
-      const votes = {}; // voterName -> votedForName
-      const voteCounts = {}; // votedForName -> count
-
-      // Current player name (to disable voting self)
-      const currentPlayerName = document.getElementById('name').value.trim();
-
-      // Create vote display below grid
-      const voteResults = document.createElement('div');
-      voteResults.id = 'voteResults';
-      voteResults.style.marginTop = '20px';
-      voteResults.style.fontSize = '1rem';
-      voteResults.style.maxHeight = '150px';
-      voteResults.style.overflowY = 'auto';
-      voteResults.style.borderTop = '1px solid #ccc';
-      voteResults.style.paddingTop = '10px';
-
-      // Back to menu button (hidden initially)
-      const backBtn = document.createElement('button');
-      backBtn.textContent = '⬅ Back to Menu';
-      backBtn.style.marginTop = '25px';
-      backBtn.style.padding = '12px 24px';
-      backBtn.style.fontSize = '1rem';
-      backBtn.style.border = 'none';
-      backBtn.style.borderRadius = '8px';
-      backBtn.style.background = '#00f2fe';
-      backBtn.style.color = '#000';
-      backBtn.style.cursor = 'pointer';
-      backBtn.style.fontWeight = 'bold';
-      backBtn.style.display = 'none';
-      backBtn.addEventListener('click', () => location.reload());
-
-      voteContainer.appendChild(voteTitle);
-      voteContainer.appendChild(timerDisplay);
-      voteContainer.appendChild(grid);
-      voteContainer.appendChild(voteResults);
-      voteContainer.appendChild(backBtn);
-      endControls.appendChild(voteContainer);
-
-      // Create grid items (drawings)
-      slides.forEach(slide => {
-        voteCounts[slide.name] = 0;
-        const card = document.createElement('div');
-        card.style.border = '3px solid transparent';
-        card.style.borderRadius = '10px';
-        card.style.cursor = 'pointer';
-        card.style.transition = 'border-color 0.3s ease, transform 0.3s ease';
-        card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-        card.title = slide.name;
-
-        const img = new Image();
-        img.src = slide.imageData || '';
-        img.alt = `Drawing by ${slide.name}`;
-        img.style.width = '180px';
-        img.style.height = '120px';
-        img.style.objectFit = 'contain';
-        img.style.borderRadius = '8px';
-
-        const label = document.createElement('p');
-        label.textContent = `${slide.avatar || '🐾'} ${slide.name}`;
-        label.style.marginTop = '6px';
-        label.style.fontWeight = '600';
-
-        card.appendChild(img);
-        card.appendChild(label);
-
-        // Vote click handler
-        card.addEventListener('click', () => {
-          if (currentPlayerName === slide.name) {
-            alert("You can't vote for yourself!");
-            return;
-          }
-          votes[currentPlayerName] = slide.name;
-          updateVotes();
-          highlightSelected();
-        });
-
-        grid.appendChild(card);
-      });
-
-      function highlightSelected() {
-        [...grid.children].forEach(card => {
-          const name = card.title;
-          if (votes[currentPlayerName] === name) {
-            card.style.borderColor = '#00f2fe';
-            card.style.transform = 'scale(1.05)';
-            card.style.boxShadow = '0 0 12px #00f2fe';
-          } else {
-            card.style.borderColor = 'transparent';
-            card.style.transform = 'scale(1)';
-            card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-          }
-        });
-      }
-
-      function updateVotes() {
-        // Reset counts
-        Object.keys(voteCounts).forEach(name => voteCounts[name] = 0);
-        Object.values(votes).forEach(votedName => {
-          if (voteCounts[votedName] !== undefined) voteCounts[votedName]++;
-        });
-
-        // Show who voted for whom
-        voteResults.innerHTML = '<strong>Votes:</strong><br>';
-        Object.entries(votes).forEach(([voter, voted]) => {
-          voteResults.innerHTML += `<div>${voter} voted for <strong>${voted}</strong></div>`;
-        });
-      }
-
-      let voteTimeLeft = 10; // 10 seconds voting timer
-      timerDisplay.textContent = `Time left to vote: ${voteTimeLeft}s`;
-
-      const voteInterval = setInterval(() => {
-        voteTimeLeft--;
-        timerDisplay.textContent = `Time left to vote: ${voteTimeLeft}s`;
-        if (voteTimeLeft <= 0) {
-          clearInterval(voteInterval);
-          timerDisplay.textContent = 'Voting ended!';
-          finalizeVoting();
-        }
-      }, 1000);
-
-      // Allow last-second selection highlight
-      highlightSelected();
-
-      function finalizeVoting() {
-        // Disable further voting
-        [...grid.children].forEach(card => card.style.cursor = 'default');
-        // Show winners with animation
-        const maxVotes = Math.max(...Object.values(voteCounts));
-        [...grid.children].forEach(card => {
-          const name = card.title;
-          if (voteCounts[name] === maxVotes && maxVotes > 0) {
-            card.style.borderColor = '#ffd700'; // gold border
-            card.style.boxShadow = '0 0 15px 4px #ffd700';
-            card.style.transform = 'scale(1.1)';
-          } else {
-            card.style.opacity = '0.4';
-          }
-        });
-        backBtn.style.display = 'inline-block';
-      }
-
-      // No further slides
+      setTimeout(() => {
+        showVotingPage(category, slides);
+      }, 2000);
       return;
     }
 
-    // existing slide showing logic continues unchanged below...
+    // Show current slide
     const slide = slides[i];
     titleEl.textContent = `Scene: ${slide.assignedScene || 'No scene assigned'}`;
     authorEl.textContent = `Drawn by ${slide.name || 'Unknown'}`;
@@ -412,6 +252,142 @@ function startSlideshow(category, slides) {
   showSlide(0);
 }
 
+// New voting page function (full new page)
+function showVotingPage(category, slides) {
+  document.body.innerHTML = `
+    <div style="padding: 20px; font-family: 'Montserrat', sans-serif; background: #001f3f; color: #00f2fe; min-height: 100vh; display: flex; flex-direction: column; align-items: center;">
+      <h1 style="margin-bottom: 5px;">🎨 Vote for the Best Drawing</h1>
+      <p style="margin-top: 0; margin-bottom: 20px;">Hover and click to vote. Only one vote allowed. Can't vote for yourself.</p>
+      <div id="voteGrid" style="display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 15px; width: 100%; max-width: 960px;"></div>
+      <div id="voteResults" style="margin-top: 20px; max-height: 150px; overflow-y: auto; border-top: 1px solid #004466; padding-top: 10px; width: 100%; max-width: 960px;"></div>
+      <p id="voteTimer" style="font-weight: bold; font-size: 1.2em; margin-top: 20px;"></p>
+      <button id="backToMenuBtn" style="margin-top: 25px; padding: 12px 24px; font-size: 1rem; border: none; border-radius: 8px; background: #00f2fe; color: #000; cursor: pointer; font-weight: bold; display: none;">⬅ Back to Menu</button>
+    </div>
+  `;
+
+  const voteGrid = document.getElementById('voteGrid');
+  const voteResults = document.getElementById('voteResults');
+  const voteTimer = document.getElementById('voteTimer');
+  const backToMenuBtn = document.getElementById('backToMenuBtn');
+
+  const votes = {};      // voterName -> votedForName
+  const voteCounts = {}; // votedForName -> count
+
+  // Current player name (try get from input or prompt)
+  const currentPlayerName = document.getElementById('name')?.value.trim() || prompt('Enter your player name for voting:');
+
+  // Create voting cards
+  slides.forEach(slide => {
+    voteCounts[slide.name] = 0;
+
+    const card = document.createElement('div');
+    card.style.border = '3px solid transparent';
+    card.style.borderRadius = '10px';
+    card.style.cursor = 'pointer';
+    card.style.transition = 'border-color 0.3s ease, transform 0.3s ease';
+    card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+    card.style.textAlign = 'center';
+    card.title = slide.name;
+
+    const img = new Image();
+    img.src = slide.imageData || '';
+    img.alt = `Drawing by ${slide.name}`;
+    img.style.width = '200px';
+    img.style.height = '140px';
+    img.style.objectFit = 'contain';
+    img.style.borderRadius = '8px';
+    card.appendChild(img);
+
+    const label = document.createElement('p');
+    label.textContent = `${slide.avatar || '🐾'} ${slide.name}`;
+    label.style.marginTop = '6px';
+    label.style.fontWeight = '600';
+    card.appendChild(label);
+
+    card.addEventListener('click', () => {
+      if (currentPlayerName === slide.name) {
+        alert("You can't vote for yourself!");
+        return;
+      }
+      votes[currentPlayerName] = slide.name;
+      updateVotes();
+      highlightSelected();
+    });
+
+    voteGrid.appendChild(card);
+  });
+
+  function highlightSelected() {
+    [...voteGrid.children].forEach(card => {
+      const name = card.title;
+      if (votes[currentPlayerName] === name) {
+        card.style.borderColor = '#00f2fe';
+        card.style.transform = 'scale(1.05)';
+        card.style.boxShadow = '0 0 12px #00f2fe';
+      } else {
+        card.style.borderColor = 'transparent';
+        card.style.transform = 'scale(1)';
+        card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+      }
+    });
+  }
+
+  function updateVotes() {
+    // Reset counts
+    Object.keys(voteCounts).forEach(name => voteCounts[name] = 0);
+    Object.values(votes).forEach(votedName => {
+      if (voteCounts[votedName] !== undefined) voteCounts[votedName]++;
+    });
+
+    // Show who voted for whom
+    voteResults.innerHTML = '<strong>Votes:</strong><br>';
+    Object.entries(votes).forEach(([voter, voted]) => {
+      voteResults.innerHTML += `<div>${voter} voted for <strong>${voted}</strong></div>`;
+    });
+  }
+
+  let voteTimeLeft = 15; // seconds
+  voteTimer.textContent = `Time left to vote: ${voteTimeLeft}s`;
+
+  const voteInterval = setInterval(() => {
+    voteTimeLeft--;
+    voteTimer.textContent = `Time left to vote: ${voteTimeLeft}s`;
+    if (voteTimeLeft <= 0) {
+      clearInterval(voteInterval);
+      voteTimer.textContent = 'Voting ended!';
+
+      finalizeVoting();
+    }
+  }, 1000);
+
+  highlightSelected();
+
+  function finalizeVoting() {
+    // Disable voting
+    [...voteGrid.children].forEach(card => card.style.cursor = 'default');
+
+    // Highlight winners
+    const maxVotes = Math.max(...Object.values(voteCounts));
+    [...voteGrid.children].forEach(card => {
+      const name = card.title;
+      if (voteCounts[name] === maxVotes && maxVotes > 0) {
+        card.style.borderColor = '#ffd700'; // gold border
+        card.style.boxShadow = '0 0 15px 4px #ffd700';
+        card.style.transform = 'scale(1.1)';
+      } else {
+        card.style.opacity = '0.4';
+      }
+    });
+
+    backToMenuBtn.style.display = 'inline-block';
+  }
+
+  backToMenuBtn.addEventListener('click', () => {
+    location.reload();
+  });
+}
+
+// When game starts, build drawing interface (your existing code)
 socket.on('start-game', ({ category, players }) => {
   const name = document.getElementById('name').value.trim();
   const me = players.find(p => p.name === name);
@@ -420,19 +396,22 @@ socket.on('start-game', ({ category, players }) => {
 
   document.body.innerHTML = `
     <div class="header-bar"><h1>Scenez</h1></div>
-    <div class="game-container">
-      <div class="players-sidebar"><h3>Players</h3><ul id="playerList"></ul></div>
-      <div class="canvas-area">
-        <canvas id="drawCanvas"></canvas>
-        <div class="controls">
-          <label>Color: <input type="color" id="colorPicker" value="#000000"></label>
-          <label>Brush Size: <input type="range" id="brushSize" min="1" max="20" value="3"></label>
-          <button id="clearBtn">Clear</button>
-          <p id="status" class="status-text"></p>
-          <p id="timer" style="font-weight: bold; margin-top: 8px; font-size: 1.1em;">Time left: 0:10</p>
-        </div>
+    <div class="game-container" style="display:flex; height:100vh; background:#011627; color:#00f2fe; font-family: 'Montserrat', sans-serif;">
+      <div class="players-sidebar" style="width: 220px; border-right: 2px solid #004466; padding: 10px; overflow-y: auto;">
+        <h3>Players</h3><ul id="playerList" style="list-style:none; padding: 0; margin: 0;"></ul>
       </div>
-      <div class="info-sidebar">
+      <div class="canvas-area" style="flex-grow: 1; padding: 10px; display:flex; flex-direction: column; align-items: center;">
+       <canvas id="drawCanvas" width="900" height="600" style="background:#022c43; border-radius: 10px; box-shadow: 0 0 15px #00f2fe;"></canvas>
+
+        <div class="controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+          <label style="color:#00f2fe;">Color: <input type="color" id="colorPicker" value="#000000"></label>
+          <label style="color:#00f2fe;">Brush Size: <input type="range" id="brushSize" min="1" max="20" value="3"></label>
+          <button id="clearBtn" style="background:#00f2fe; color:#000; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer;">Clear</button>
+        </div>
+        <p id="status" class="status-text" style="margin-top: 10px; font-weight: bold;"></p>
+        <p id="timer" style="font-weight: bold; font-size: 1.1em; margin-top: 8px;">Time left: 0:05</p>
+      </div>
+      <div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
         <h2>Category</h2>
         <p>${category}</p>
         <h2>Your Scene</h2>
@@ -442,8 +421,6 @@ socket.on('start-game', ({ category, players }) => {
   `;
 
   const canvas = document.getElementById('drawCanvas');
-  canvas.width = 900;
-  canvas.height = 600;
   const ctx = canvas.getContext('2d');
   let drawing = false;
   let brushColor = document.getElementById('colorPicker').value;
@@ -480,7 +457,7 @@ socket.on('start-game', ({ category, players }) => {
 
   const statusEl = document.getElementById('status');
   const timerEl = document.getElementById('timer');
-  let timeLeft = 5; // Changed to 5 seconds for testing, adjust as needed
+  let timeLeft = 5; // 5 seconds for quick testing, adjust as needed
   let timerInterval = null;
 
   function updateTimer() {
@@ -491,11 +468,15 @@ socket.on('start-game', ({ category, players }) => {
       canvas.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('mouseout', onMouseUp);
       document.getElementById('clearBtn').disabled = true;
+      document.getElementById('colorPicker').disabled = true;
+      document.getElementById('brushSize').disabled = true;
 
       const imageData = canvas.toDataURL('image/png');
       socket.emit('submit-drawing', { roomCode: currentRoomCode, imageData });
       socket.emit('drawing-complete', currentRoomCode);
 
+      // Wait for server slideshow or fallback
+      // For now fallback:
       const fallbackSlides = [{
         name: name,
         avatar: confirmedAvatar,
@@ -528,6 +509,7 @@ socket.on('start-game', ({ category, players }) => {
   });
 });
 
+// When server signals slideshow start, call startSlideshow with slides
 socket.on('start-slideshow', ({ category, slides }) => {
   startSlideshow(category, slides);
 });

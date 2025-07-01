@@ -591,4 +591,229 @@ canvas#slideshowCanvas {
   font-size: 1.8rem;
   user-select: none;
   pointer-events: none;
+}/* === Voting Gallery Phase — Enhanced + Animated Background === */
+.voting-gallery {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  padding: 40px 60px;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  z-index: 100;
+  animation: fadeIn 1s ease-out;
+}
+
+/* Animated background layer */
+.voting-bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  opacity: 0.9;
+  background: radial-gradient(ellipse at center, #0a1829 0%, #000c18 100%);
+  animation: gradientShift 15s ease infinite;
+}
+
+.voting-bg::before {
+  content: '';
+  position: absolute;
+  width: 300%;
+  height: 300%;
+  top: -100%;
+  left: -100%;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 242, 254, 0.02),
+    rgba(0, 242, 254, 0.02) 1px,
+    transparent 1px,
+    transparent 30px
+  );
+  animation: floatGrid 40s linear infinite;
+}
+
+/* Voting content */
+.voting-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.8rem;
+  color: #00f2fe;
+  text-shadow: 0 0 20px #00f2fe, 0 0 40px #1ce0ff;
+  margin-bottom: 30px;
+  animation: glowPulse 2s infinite alternate;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  width: 100%;
+  max-width: 1400px;
+}
+
+.vote-card {
+  position: relative;
+  background: rgba(0, 242, 254, 0.07);
+  border: 2px solid #00f2fe55;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 0 25px #00f2fe22;
+  backdrop-filter: blur(6px);
+}
+
+.vote-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-bottom: 2px solid #00f2fe33;
+  transition: transform 0.3s ease;
+}
+
+.vote-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 35px #00f2fecc;
+}
+
+.vote-card:hover img {
+  transform: scale(1.02);
+}
+
+.vote-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 242, 254, 0.85), rgba(0, 242, 254, 0.3));
+  color: #000;
+  padding: 10px;
+  font-weight: 700;
+  text-align: center;
+  font-size: 1.1rem;
+  transition: background 0.3s ease;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.vote-selected {
+  background: #00ffcc !important;
+  color: #000;
+  box-shadow: 0 0 25px 8px #00ffcc;
+  animation: pulseVote 1.2s infinite;
+}
+
+/* Shows who voted for whom */
+.vote-details {
+  margin-top: 25px;
+  color: #a0e9ff;
+  font-size: 1rem;
+  background: rgba(0, 242, 254, 0.1);
+  padding: 14px 24px;
+  border-radius: 10px;
+  box-shadow: 0 0 12px #00f2fe55;
+  max-width: 600px;
+  text-align: center;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+/* Back buttons after vote */
+.vote-controls {
+  margin-top: 35px;
+  display: flex;
+  gap: 20px;
+}
+
+.vote-controls button {
+  padding: 14px 28px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #00f2fe, #4facfe);
+  color: #000;
+  cursor: pointer;
+  box-shadow: 0 0 18px #00f2feaa;
+  transition: background 0.3s ease, transform 0.2s ease;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.vote-controls button:hover {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  transform: scale(1.07);
+}
+
+/* === Animations === */
+@keyframes pulseVote {
+  0% { box-shadow: 0 0 15px 5px #00ffcc; }
+  100% { box-shadow: 0 0 25px 12px #00ffccaa; }
+}
+
+@keyframes glowPulse {
+  0% { text-shadow: 0 0 20px #00f2fe, 0 0 40px #1ce0ff; }
+  100% { text-shadow: 0 0 30px #00f2fe, 0 0 60px #1ce0ff; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatGrid {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(200px, 200px); }
+}
+/* === Animated Voting Background === */
+.voting-bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  opacity: 0.9;
+  background: radial-gradient(ellipse at center, #0a1829 0%, #000c18 100%);
+  animation: gradientShift 20s ease infinite;
+  overflow: hidden;
+}
+
+.voting-bg::before {
+  content: '';
+  position: absolute;
+  width: 300%;
+  height: 300%;
+  top: -100%;
+  left: -100%;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 242, 254, 0.03),
+    rgba(0, 242, 254, 0.03) 1px,
+    transparent 1px,
+    transparent 30px
+  );
+  animation: floatGrid 60s linear infinite;
+}
+
+/* === Animated Background Keyframes === */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes floatGrid {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(200px, 200px); }
 }
