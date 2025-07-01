@@ -346,7 +346,7 @@ function showVotingPage(category, slides) {
     });
   }
 
-  let voteTimeLeft = 15; // seconds
+  let voteTimeLeft = 10; // seconds
   voteTimer.textContent = `Time left to vote: ${voteTimeLeft}s`;
 
   const voteInterval = setInterval(() => {
@@ -457,7 +457,7 @@ socket.on('start-game', ({ category, players }) => {
 
   const statusEl = document.getElementById('status');
   const timerEl = document.getElementById('timer');
-  let timeLeft = 5; // 5 seconds for quick testing, adjust as needed
+  let timeLeft = 90; // 5 seconds for quick testing, adjust as needed
   let timerInterval = null;
 
   function updateTimer() {
