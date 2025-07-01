@@ -409,7 +409,7 @@ socket.on('start-game', ({ category, players }) => {
           <button id="clearBtn" style="background:#00f2fe; color:#000; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer;">Clear</button>
         </div>
         <p id="status" class="status-text" style="margin-top: 10px; font-weight: bold;"></p>
-        <p id="timer" style="font-weight: bold; font-size: 1.1em; margin-top: 8px;">Time left: 0:05</p>
+        <p id="timer" style="font-weight: bold; font-size: 1.1em; margin-top: 8px;">Time left: 1:30</p>
       </div>
       <div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
         <h2>Category</h2>
@@ -455,14 +455,15 @@ socket.on('start-game', ({ category, players }) => {
   document.getElementById('brushSize').addEventListener('input', e => brushSize = parseInt(e.target.value));
   document.getElementById('clearBtn').addEventListener('click', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
-  const statusEl = document.getElementById('status');
   const timerEl = document.getElementById('timer');
-  let timeLeft = 90; // 5 seconds for quick testing, adjust as needed
+  let timeLeft = 90; // 90 seconds
   let timerInterval = null;
 
   function updateTimer() {
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
+
+      // Disable drawing and controls
       canvas.removeEventListener('mousedown', onMouseDown);
       canvas.removeEventListener('mousemove', onMouseMove);
       canvas.removeEventListener('mouseup', onMouseUp);
@@ -471,12 +472,12 @@ socket.on('start-game', ({ category, players }) => {
       document.getElementById('colorPicker').disabled = true;
       document.getElementById('brushSize').disabled = true;
 
+      // Send drawing to server
       const imageData = canvas.toDataURL('image/png');
       socket.emit('submit-drawing', { roomCode: currentRoomCode, imageData });
       socket.emit('drawing-complete', currentRoomCode);
 
-      // Wait for server slideshow or fallback
-      // For now fallback:
+      // Fallback slideshow if no server slides received
       const fallbackSlides = [{
         name: name,
         avatar: confirmedAvatar,
@@ -497,6 +498,7 @@ socket.on('start-game', ({ category, players }) => {
   timerInterval = setInterval(updateTimer, 1000);
   updateTimer();
 
+  // Display players on sidebar
   const playerList = document.getElementById('playerList');
   players.forEach(p => {
     const li = document.createElement('li');
@@ -509,7 +511,7 @@ socket.on('start-game', ({ category, players }) => {
   });
 });
 
-// When server signals slideshow start, call startSlideshow with slides
+// Listen for slideshow start event
 socket.on('start-slideshow', ({ category, slides }) => {
   startSlideshow(category, slides);
 });
