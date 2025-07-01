@@ -817,3 +817,70 @@ canvas#slideshowCanvas {
   0% { transform: translate(0, 0); }
   100% { transform: translate(200px, 200px); }
 }
+
+
+/* === Scene and timer container at top above canvas === */
+.scene-timer-container {
+  position: fixed;
+  top: 10px;
+  left: 220px; /* aligned with canvas container left edge */
+  right: 20px;
+  height: 70px;
+  background: rgba(0, 242, 254, 0.15);
+  border-radius: 12px;
+  padding: 10px 20px;
+  box-shadow: 0 0 20px #00f2fe99;
+  color: #00f2fe;
+  font-family: 'Orbitron', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 101;
+}
+
+/* Scene text inside the container */
+.scene-timer-container .scene-text {
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-shadow: 0 0 8px #00f2fe;
+  user-select: none;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Timer styling */
+.scene-timer-container .timer {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #00ffcc;
+  text-shadow: 0 0 12px #00ffcc;
+  user-select: none;
+  min-width: 80px;
+  text-align: right;
+}
+
+/* Adjust canvas area padding to avoid overlap */
+.game-container {
+  padding-top: 90px; /* leave space for fixed scene-timer-container */
+  padding-left: 220px; /* keep left padding for sidebar */
+  padding-right: 20px;
+  padding-bottom: 20px;
+}
+
+/* Optionally reduce margin-top from scene text below canvas if exists */
+#sceneTitle {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Also make sure players sidebar stays where it is */
+.players-sidebar {
+  top: 90px; /* move down below scene timer */
+}
+
+/* If you have an info sidebar on right, adjust if needed */
+.info-sidebar {
+  margin-top: 90px;
+}
