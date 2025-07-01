@@ -99,7 +99,7 @@ function resetRoom(roomCode) {
 io.on('connection', (socket) => {
   console.log('New user connected:', socket.id);
 
-  socket.on('join-room', ({ roomCode, name, avatar }) => {
+  socket.on('join-room', ({ roomCode, name, avatar, deviceId }) => {
     if (!rooms[roomCode]) {
       rooms[roomCode] = { players: [], gameStarted: false, category: null, votes: {} };
     }
@@ -126,8 +126,14 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // NEW: Prevent same deviceId joining twice in same room
+    if (room.players.some(p => p.deviceId === deviceId)) {
+      socket.emit('device-already-joined', 'This device is already connected to this room.');
+      return;
+    }
+
     const playerNumber = room.players.length + 1;
-    room.players.push({ id: socket.id, name, avatar, drawing: null, playerNumber, assignedScene: null });
+    room.players.push({ id: socket.id, name, avatar, drawing: null, playerNumber, assignedScene: null, deviceId });
     socket.join(roomCode);
 
     io.to(roomCode).emit('room-update', room.players.map(p => ({
