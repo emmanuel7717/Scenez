@@ -412,11 +412,13 @@ socket.on('start-game', ({ category, players }) => {
         <p id="timer" style="font-weight: bold; font-size: 1.3em; margin-bottom: 10px;">Time left: 1:30</p>
         <canvas id="drawCanvas" width="900" height="600" style="background:#022c43; border-radius: 10px; box-shadow: 0 0 15px #00f2fe;"></canvas>
       </div>
-      <div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
-        <h3>Category</h3>
-        <p id="categoryName">${category}</p>
-      </div>
-    </div>
+     <div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
+  <h3>Category</h3>
+  <p id="categoryName">${category}</p>
+  <h3>Scene</h3>
+  <p id="sceneName">${me.assignedScene || 'No scene assigned'}</p>
+</div>
+
   `;
 
   // Show players in sidebar
