@@ -1,3 +1,6 @@
+// [Full client.js start]
+
+// Socket connection
 const socket = io();
 
 let currentRoomCode = null;
@@ -387,7 +390,7 @@ function showVotingPage(category, slides) {
   });
 }
 
-// When game starts, build drawing interface with timer visible above canvas
+// When game starts, build drawing interface with controls ABOVE the timer
 socket.on('start-game', ({ category, players }) => {
   const name = document.getElementById('name').value.trim();
   const me = players.find(p => p.name === name);
@@ -401,110 +404,26 @@ socket.on('start-game', ({ category, players }) => {
         <h3>Players</h3><ul id="playerList" style="list-style:none; padding: 0; margin: 0;"></ul>
       </div>
       <div class="canvas-area" style="flex-grow: 1; padding: 10px; display:flex; flex-direction: column; align-items: center;">
-        <p id="timer" style="font-weight: bold; font-size: 1.3em; margin-bottom: 10px;">Time left: 1:30</p>
-        <canvas id="drawCanvas" width="900" height="600" style="background:#022c43; border-radius: 10px; box-shadow: 0 0 15px #00f2fe;"></canvas>
-
-        <div class="controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+        <div class="controls" style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
           <label style="color:#00f2fe;">Color: <input type="color" id="colorPicker" value="#000000"></label>
           <label style="color:#00f2fe;">Brush Size: <input type="range" id="brushSize" min="1" max="20" value="3"></label>
           <button id="clearBtn" style="background:#00f2fe; color:#000; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer;">Clear</button>
         </div>
-        <p id="status" class="status-text" style="margin-top: 10px; font-weight: bold;"></p>
+        <p id="timer" style="font-weight: bold; font-size: 1.3em; margin-bottom: 10px;">Time left: 1:30</p>
+        <canvas id="drawCanvas" width="900" height="600" style="background:#022c43; border-radius: 10px; box-shadow: 0 0 15px #00f2fe;"></canvas>
       </div>
       <div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
-        <h2>Category</h2>
-        <p>${category}</p>
-        <h2>Your Scene</h2>
-        <p class="scene-text">${me.assignedScene || 'No scene assigned'}</p>
+        <h3>Category</h3>
+        <p id="categoryName">${category}</p>
       </div>
     </div>
   `;
 
-  const canvas = document.getElementById('drawCanvas');
-  const ctx = canvas.getContext('2d');
-  let drawing = false;
-  let brushColor = document.getElementById('colorPicker').value;
-  let brushSize = parseInt(document.getElementById('brushSize').value);
-
-  function onMouseDown(e) {
-    drawing = true;
-    ctx.beginPath();
-    ctx.moveTo(e.offsetX, e.offsetY);
-  }
-
-  function onMouseMove(e) {
-    if (!drawing) return;
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.strokeStyle = brushColor;
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-  }
-
-  function onMouseUp() {
-    drawing = false;
-  }
-
-  canvas.addEventListener('mousedown', onMouseDown);
-  canvas.addEventListener('mousemove', onMouseMove);
-  canvas.addEventListener('mouseup', onMouseUp);
-  canvas.addEventListener('mouseout', onMouseUp);
-
-  document.getElementById('colorPicker').addEventListener('change', e => brushColor = e.target.value);
-  document.getElementById('brushSize').addEventListener('input', e => brushSize = parseInt(e.target.value));
-  document.getElementById('clearBtn').addEventListener('click', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
-
-  const timerEl = document.getElementById('timer');
-  let timeLeft = 90; // 90 seconds
-  let timerInterval = null;
-
-  function updateTimer() {
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-
-      // Disable drawing and controls
-      canvas.removeEventListener('mousedown', onMouseDown);
-      canvas.removeEventListener('mousemove', onMouseMove);
-      canvas.removeEventListener('mouseup', onMouseUp);
-      canvas.removeEventListener('mouseout', onMouseUp);
-      document.getElementById('clearBtn').disabled = true;
-      document.getElementById('colorPicker').disabled = true;
-      document.getElementById('brushSize').disabled = true;
-
-      // Hide timer once drawing ends
-      timerEl.style.display = 'none';
-
-      // Send drawing to server
-      const imageData = canvas.toDataURL('image/png');
-      socket.emit('submit-drawing', { roomCode: currentRoomCode, imageData });
-      socket.emit('drawing-complete', currentRoomCode);
-
-      // Fallback slideshow if no server slides received
-      const fallbackSlides = [{
-        name: name,
-        avatar: confirmedAvatar,
-        assignedScene: document.querySelector('.scene-text')?.textContent || '',
-        imageData: imageData
-      }];
-
-      startSlideshow(category, fallbackSlides);
-      return;
-    }
-
-    timeLeft--;
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    timerEl.textContent = `Time left: ${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  timerInterval = setInterval(updateTimer, 1000);
-  updateTimer();
-
-  // Display players on sidebar
+  // Show players in sidebar
   const playerList = document.getElementById('playerList');
   players.forEach(p => {
     const li = document.createElement('li');
+    li.style.marginBottom = '8px';
     const avatarSpan = document.createElement('span');
     avatarSpan.textContent = p.avatar || '🐾';
     avatarSpan.style.marginRight = '8px';
@@ -512,9 +431,128 @@ socket.on('start-game', ({ category, players }) => {
     li.appendChild(document.createTextNode(p.name));
     playerList.appendChild(li);
   });
+
+  // Drawing canvas setup
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  const colorPicker = document.getElementById('colorPicker');
+  const brushSize = document.getElementById('brushSize');
+  const clearBtn = document.getElementById('clearBtn');
+  const timerEl = document.getElementById('timer');
+
+  let currentColor = colorPicker.value;
+  let currentBrushSize = brushSize.value;
+
+  colorPicker.addEventListener('input', (e) => {
+    currentColor = e.target.value;
+  });
+
+  brushSize.addEventListener('input', (e) => {
+    currentBrushSize = e.target.value;
+  });
+
+  clearBtn.addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    socket.emit('canvas-clear', currentRoomCode);
+  });
+
+  canvas.addEventListener('mousedown', (e) => {
+    drawing = true;
+    [lastX, lastY] = [e.offsetX, e.offsetY];
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    drawing = false;
+  });
+
+  canvas.addEventListener('mouseout', () => {
+    drawing = false;
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!drawing) return;
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentBrushSize;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+    [lastX, lastY] = [e.offsetX, e.offsetY];
+
+    // Emit drawing data to server
+    socket.emit('draw-line', {
+      roomCode: currentRoomCode,
+      from: { x: lastX, y: lastY },
+      to: { x: e.offsetX, y: e.offsetY },
+      color: currentColor,
+      brushSize: currentBrushSize,
+    });
+  });
+
+  // Listen for draw updates from server
+  socket.on('draw-line', (data) => {
+    if (data.roomCode !== currentRoomCode) return;
+    ctx.strokeStyle = data.color;
+    ctx.lineWidth = data.brushSize;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(data.from.x, data.from.y);
+    ctx.lineTo(data.to.x, data.to.y);
+    ctx.stroke();
+  });
+
+  // Clear canvas event
+  socket.on('canvas-clear', (roomCode) => {
+    if (roomCode !== currentRoomCode) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+
+  // Drawing timer countdown (90 seconds)
+  let drawTimeLeft = 90;
+  timerEl.style.display = 'block';
+
+  const drawTimer = setInterval(() => {
+    if (drawTimeLeft <= 0) {
+      clearInterval(drawTimer);
+      timerEl.textContent = 'Time is up!';
+      socket.emit('drawing-time-up', currentRoomCode);
+      return;
+    }
+    let minutes = Math.floor(drawTimeLeft / 60);
+    let seconds = drawTimeLeft % 60;
+    timerEl.textContent = `Time left: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+    drawTimeLeft--;
+  }, 1000);
 });
 
-// Listen for slideshow start event
+// Hide timer during slideshow phase
 socket.on('start-slideshow', ({ category, slides }) => {
   startSlideshow(category, slides);
 });
+
+// Add any other necessary socket handlers here...
+
+// Initial setup: bind join/create buttons
+document.getElementById('joinBtn')?.addEventListener('click', joinRoom);
+document.getElementById('createBtn')?.addEventListener('click', createRoom);
+document.getElementById('startBtn')?.addEventListener('click', startManualGame);
+
+// Avatar selection logic (assuming you have an avatar picker UI somewhere)
+const avatarButtons = document.querySelectorAll('.avatar-button');
+avatarButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const avatar = btn.textContent;
+    if (confirmAvatar(avatar)) {
+      // Mark selected avatar in UI, if needed
+      avatarButtons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
+  });
+});
+
+// [Full client.js end]
