@@ -6,17 +6,81 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const rooms = {}; // roomCode -> { players: [], gameStarted: false, category: null, votes: {} }
+const rooms = {};
 
 const categories = {
-  "Fruits": ["Apple", "Banana", "Orange", "Strawberry", "Watermelon slice", "Grapes", "Pineapple"],
-  "Simple Animals": ["Cat", "Dog", "Fish", "Bird", "Turtle", "Frog", "Rabbit"],
-  "Common Foods": ["Pizza slice", "Burger", "Hot dog", "Ice cream cone", "Cupcake", "French fries", "Donut"],
-  "Nature Elements": ["Tree", "Flower", "Cloud", "Sun", "Leaf", "Mountain", "Rain"],
-  "Household Objects": ["Lamp", "Chair", "Clock", "Cup", "Shoe", "Backpack", "Phone"],
-  "Funny Accessories": ["Sunglasses", "Hat", "Bowtie", "Mustache", "Crazy socks", "Necklace", "Watch"],
-  "Transportation": ["Bicycle", "Car", "Bus", "Boat", "Airplane", "Scooter", "Skateboard"],
-  "Famous Anime Characters": ["Goku", "Naruto", "Sailor Moon", "Pikachu", "Luffy", "Totoro", "Astro Boy"]
+  "Fruits": [
+    "Apple",
+    "Banana",
+    "Orange",
+    "Strawberry",
+    "Watermelon slice",
+    "Grapes",
+    "Pineapple"
+  ],
+  "Simple Animals": [
+    "Cat",
+    "Dog",
+    "Fish",
+    "Bird",
+    "Turtle",
+    "Frog",
+    "Rabbit"
+  ],
+  "Common Foods": [
+    "Pizza slice",
+    "Burger",
+    "Hot dog",
+    "Ice cream cone",
+    "Cupcake",
+    "French fries",
+    "Donut"
+  ],
+  "Nature Elements": [
+    "Tree",
+    "Flower",
+    "Cloud",
+    "Sun",
+    "Leaf",
+    "Mountain",
+    "Rain"
+  ],
+  "Household Objects": [
+    "Lamp",
+    "Chair",
+    "Clock",
+    "Cup",
+    "Shoe",
+    "Backpack",
+    "Phone"
+  ],
+  "Funny Accessories": [
+    "Sunglasses",
+    "Hat",
+    "Bowtie",
+    "Mustache",
+    "Crazy socks",
+    "Necklace",
+    "Watch"
+  ],
+  "Transportation": [
+    "Bicycle",
+    "Car",
+    "Bus",
+    "Boat",
+    "Airplane",
+    "Scooter",
+    "Skateboard"
+  ],
+  "Famous Anime Characters": [
+    "Goku",
+    "Naruto",
+    "Sailor Moon",
+    "Pikachu",
+    "Luffy",
+    "Totoro",
+    "Astro Boy"
+  ]
 };
 
 function resetRoom(roomCode) {
@@ -40,11 +104,31 @@ io.on('connection', (socket) => {
     }
 
     const room = rooms[roomCode];
-    if (room.gameStarted) return socket.emit('game-already-started');
-    if (room.players.some(p => p.name === name)) return socket.emit('name-taken');
-    if (room.players.length >= 6) return socket.emit('room-full');
-    if (room.players.some(p => p.avatar === avatar)) return socket.emit('avatar-taken');
-    if (room.players.some(p => p.deviceId === deviceId)) return socket.emit('device-already-joined');
+
+    if (room.gameStarted) {
+      socket.emit('game-already-started');
+      return;
+    }
+
+    if (room.players.some(p => p.name === name)) {
+      socket.emit('name-taken');
+      return;
+    }
+
+    if (room.players.length >= 6) {
+      socket.emit('room-full');
+      return;
+    }
+
+    if (room.players.some(p => p.avatar === avatar)) {
+      socket.emit('avatar-taken', 'This avatar is already taken in this room. Pick another!');
+      return;
+    }
+
+    if (room.players.some(p => p.deviceId === deviceId)) {
+      socket.emit('device-already-joined', 'This device is already connected to this room.');
+      return;
+    }
 
     const playerNumber = room.players.length + 1;
     room.players.push({ id: socket.id, name, avatar, drawing: null, playerNumber, assignedScene: null, deviceId });
@@ -55,6 +139,8 @@ io.on('connection', (socket) => {
       avatar: `${p.avatar} ${p.playerNumber}`,
       playerNumber: p.playerNumber
     })));
+
+    console.log(`Player ${name} joined room ${roomCode}`);
 
     if (room.players.length === 6 && !room.gameStarted) {
       startGameForRoom(roomCode);
@@ -105,28 +191,24 @@ io.on('connection', (socket) => {
 
     player.drawing = imageData;
 
-    if (room.players.every(p => p.drawing)) {
-      startSlideshowPhase(roomCode);
+    if (room.players.every(p => p.drawing !== null)) {
+      emitSlideshow(roomCode);
     }
   });
 
-  // ✅ NEW: Start slideshow automatically when timer ends
   socket.on('drawing-time-up', (roomCode) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // Set empty drawing for anyone who didn't submit
     room.players.forEach(p => {
-      if (!p.drawing) p.drawing = '';
+      if (p.drawing === null) p.drawing = '';
     });
-
-    startSlideshowPhase(roomCode);
+    emitSlideshow(roomCode);
   });
 
-  function startSlideshowPhase(roomCode) {
+  function emitSlideshow(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
-
     const slides = room.players.map(p => ({
       name: p.name,
       avatar: `${p.avatar} ${p.playerNumber}`,
@@ -134,21 +216,15 @@ io.on('connection', (socket) => {
       imageData: p.drawing
     }));
 
-    io.to(roomCode).emit('start-slideshow', {
-      category: room.category,
-      slides
-    });
-
-    // (Optional) trigger voting after 60s
-    setTimeout(() => {
-      io.to(roomCode).emit('start-voting', {
-        players: room.players.map(p => ({
-          name: p.name,
-          avatar: `${p.avatar} ${p.playerNumber}`
-        }))
-      });
-    }, 60000);
+    io.to(roomCode).emit('start-slideshow', { category: room.category, slides });
   }
+
+  socket.on('slideshow-finished', (roomCode) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    io.to(roomCode).emit('start-voting', { players: room.players.map(p => ({ name: p.name, avatar: `${p.avatar} ${p.playerNumber}` })) });
+  });
 
   socket.on('submit-vote', ({ roomCode, voterName, votedForName }) => {
     const room = rooms[roomCode];
@@ -177,14 +253,17 @@ io.on('connection', (socket) => {
       }
 
       io.to(roomCode).emit('voting-results', { winners, voteCounts });
+
       resetRoom(roomCode);
     }
   });
 
   socket.on('back-to-lobby', (roomCode) => {
     resetRoom(roomCode);
+
     const room = rooms[roomCode];
     if (!room) return;
+
     io.to(roomCode).emit('back-to-lobby');
   });
 
@@ -203,9 +282,10 @@ io.on('connection', (socket) => {
           avatar: `${p.avatar} ${p.playerNumber}`,
           playerNumber: p.playerNumber
         })));
+
         if (room.players.length === 0) {
           delete rooms[roomCode];
-          console.log(`Room ${roomCode} deleted`);
+          console.log(`Room ${roomCode} deleted (empty)`);
         }
         break;
       }
@@ -217,5 +297,5 @@ app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server started at http://localhost:${PORT}`);
+  console.log(`Server started on http://localhost:${PORT}`);
 });

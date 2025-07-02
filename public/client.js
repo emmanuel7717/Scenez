@@ -1,5 +1,3 @@
-// [Full client.js start]
-
 // Socket connection
 const socket = io();
 
@@ -146,7 +144,7 @@ function speakText(text, onEnd) {
   }
 }
 
-// Slideshow function — full code unchanged except no timer visible
+// Slideshow function — shows slides one by one with drawing animation & narration
 function startSlideshow(category, slides) {
   document.body.innerHTML = `
     <div class="header-bar"><h1>Scenez</h1></div>
@@ -255,7 +253,7 @@ function startSlideshow(category, slides) {
   showSlide(0);
 }
 
-// New voting page function (full new page)
+// Voting page with grid of drawings to vote on
 function showVotingPage(category, slides) {
   document.body.innerHTML = `
     <div style="padding: 20px; font-family: 'Montserrat', sans-serif; background: #001f3f; color: #00f2fe; min-height: 100vh; display: flex; flex-direction: column; align-items: center;">
@@ -425,136 +423,123 @@ socket.on('start-game', ({ category, players }) => {
   const playerList = document.getElementById('playerList');
   players.forEach(p => {
     const li = document.createElement('li');
-    li.style.marginBottom = '8px';
+    li.textContent = p.name;
     const avatarSpan = document.createElement('span');
     avatarSpan.textContent = p.avatar || '🐾';
     avatarSpan.style.marginRight = '8px';
-    li.appendChild(avatarSpan);
-    li.appendChild(document.createTextNode(p.name));
+    li.prepend(avatarSpan);
     playerList.appendChild(li);
   });
 
   // Drawing canvas setup
   const canvas = document.getElementById('drawCanvas');
   const ctx = canvas.getContext('2d');
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Settings
   let drawing = false;
   let lastX = 0;
   let lastY = 0;
+  let brushColor = document.getElementById('colorPicker').value;
+  let brushSize = parseInt(document.getElementById('brushSize').value, 10);
 
-  const colorPicker = document.getElementById('colorPicker');
-  const brushSize = document.getElementById('brushSize');
-  const clearBtn = document.getElementById('clearBtn');
-  const timerEl = document.getElementById('timer');
-
-  let currentColor = colorPicker.value;
-  let currentBrushSize = brushSize.value;
-
-  colorPicker.addEventListener('input', (e) => {
-    currentColor = e.target.value;
-  });
-
-  brushSize.addEventListener('input', (e) => {
-    currentBrushSize = e.target.value;
-  });
-
-  clearBtn.addEventListener('click', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    socket.emit('canvas-clear', currentRoomCode);
-  });
-
-  canvas.addEventListener('mousedown', (e) => {
+  // Event listeners
+  function startDraw(e) {
     drawing = true;
     [lastX, lastY] = [e.offsetX, e.offsetY];
-  });
-
-  canvas.addEventListener('mouseup', () => {
-    drawing = false;
-  });
-
-  canvas.addEventListener('mouseout', () => {
-    drawing = false;
-  });
-
-  canvas.addEventListener('mousemove', (e) => {
+  }
+  function draw(e) {
     if (!drawing) return;
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = currentBrushSize;
-    ctx.lineCap = 'round';
+    ctx.strokeStyle = brushColor;
+    ctx.lineWidth = brushSize;
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(e.offsetX, e.offsetY);
     ctx.stroke();
     [lastX, lastY] = [e.offsetX, e.offsetY];
+  }
+  function endDraw() {
+    drawing = false;
+  }
 
-    // Emit drawing data to server
-    socket.emit('draw-line', {
-      roomCode: currentRoomCode,
-      from: { x: lastX, y: lastY },
-      to: { x: e.offsetX, y: e.offsetY },
-      color: currentColor,
-      brushSize: currentBrushSize,
-    });
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseout', endDraw);
+
+  // Controls
+  document.getElementById('colorPicker').addEventListener('change', e => {
+    brushColor = e.target.value;
   });
-
-  // Listen for draw updates from server
-  socket.on('draw-line', (data) => {
-    if (data.roomCode !== currentRoomCode) return;
-    ctx.strokeStyle = data.color;
-    ctx.lineWidth = data.brushSize;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(data.from.x, data.from.y);
-    ctx.lineTo(data.to.x, data.to.y);
-    ctx.stroke();
+  document.getElementById('brushSize').addEventListener('input', e => {
+    brushSize = parseInt(e.target.value, 10);
   });
-
-  // Clear canvas event
-  socket.on('canvas-clear', (roomCode) => {
-    if (roomCode !== currentRoomCode) return;
+  document.getElementById('clearBtn').addEventListener('click', () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   });
 
-  // Drawing timer countdown (90 seconds)
-  let drawTimeLeft = 90;
+  // Timer and auto-submit on zero
+  const timerEl = document.getElementById('timer');
+  let timeLeft = 90; // 1.5 min drawing time
   timerEl.style.display = 'block';
 
-  const drawTimer = setInterval(() => {
-    if (drawTimeLeft <= 0) {
-      clearInterval(drawTimer);
-      timerEl.textContent = 'Time is up!';
-      socket.emit('drawing-time-up', currentRoomCode);
-      return;
+  const timerInterval = setInterval(() => {
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      timerEl.textContent = 'Time is up! Submitting drawing...';
+      submitDrawing();
+    } else {
+      const mins = Math.floor(timeLeft / 60);
+      const secs = timeLeft % 60;
+      timerEl.textContent = `Time left: ${mins}:${secs.toString().padStart(2, '0')}`;
+      timeLeft--;
     }
-    let minutes = Math.floor(drawTimeLeft / 60);
-    let seconds = drawTimeLeft % 60;
-    timerEl.textContent = `Time left: ${minutes}:${seconds.toString().padStart(2, '0')}`;
-    drawTimeLeft--;
   }, 1000);
+
+  // Submit drawing to server
+  function submitDrawing() {
+    // Disable drawing controls
+    canvas.removeEventListener('mousedown', startDraw);
+    canvas.removeEventListener('mousemove', draw);
+    canvas.removeEventListener('mouseup', endDraw);
+    canvas.removeEventListener('mouseout', endDraw);
+    document.getElementById('colorPicker').disabled = true;
+    document.getElementById('brushSize').disabled = true;
+    document.getElementById('clearBtn').disabled = true;
+    timerEl.style.display = 'none';
+
+    // Get image data as PNG base64
+    const imageData = canvas.toDataURL('image/png');
+
+    socket.emit('drawing-submitted', {
+      roomCode: currentRoomCode,
+      deviceId,
+      imageData,
+    });
+  }
 });
 
-// Hide timer during slideshow phase
+// Slideshow start event
 socket.on('start-slideshow', ({ category, slides }) => {
   startSlideshow(category, slides);
 });
 
-// Add any other necessary socket handlers here...
-
-// Initial setup: bind join/create buttons
-document.getElementById('joinBtn')?.addEventListener('click', joinRoom);
-document.getElementById('createBtn')?.addEventListener('click', createRoom);
-document.getElementById('startBtn')?.addEventListener('click', startManualGame);
-
-// Avatar selection logic (assuming you have an avatar picker UI somewhere)
-const avatarButtons = document.querySelectorAll('.avatar-button');
-avatarButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const avatar = btn.textContent;
-    if (confirmAvatar(avatar)) {
-      // Mark selected avatar in UI, if needed
-      avatarButtons.forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-    }
-  });
+// Confirm avatar selection button click
+document.getElementById('confirmAvatarBtn')?.addEventListener('click', () => {
+  const selected = document.querySelector('input[name="avatar"]:checked');
+  if (!selected) return alert('Please select an avatar!');
+  const avatar = selected.value;
+  if (confirmAvatar(avatar)) {
+    alert(`Avatar ${avatar} confirmed!`);
+  }
 });
 
-// [Full client.js end]
+// Ready button triggers joinRoom
+document.getElementById('readyBtn')?.addEventListener('click', joinRoom);
+
+// Create room button triggers createRoom
+document.getElementById('createRoomBtn')?.addEventListener('click', createRoom);
+
+// Start game manual button
+document.getElementById('startManualBtn')?.addEventListener('click', startManualGame);
