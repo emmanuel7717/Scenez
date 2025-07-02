@@ -2,70 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" /> <!-- Added for responsiveness -->
   <title>Scenez Lobby 🎨</title>
   <link rel="stylesheet" href="style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
 </head>
 <body>
   <!-- Avatar picker container top-right -->
-  <div class="avatar-picker-container" role="region" aria-label="Avatar Picker">
-    <button id="avatarToggleBtn" title="Pick your avatar" aria-haspopup="true" aria-expanded="false">🐾 Pick Avatar</button>
-    <div id="avatarOptions" class="avatar-options hidden" role="menu" aria-label="Avatar options">
-      <button class="avatar-option" data-avatar="🐶" role="menuitem" aria-label="Dog">🐶</button>
-      <button class="avatar-option" data-avatar="🐱" role="menuitem" aria-label="Cat">🐱</button>
-      <button class="avatar-option" data-avatar="🦊" role="menuitem" aria-label="Fox">🦊</button>
-      <button class="avatar-option" data-avatar="🐻" role="menuitem" aria-label="Bear">🐻</button>
-      <button class="avatar-option" data-avatar="🐼" role="menuitem" aria-label="Panda">🐼</button>
-      <button class="avatar-option" data-avatar="🐨" role="menuitem" aria-label="Koala">🐨</button>
-      <button class="avatar-option" data-avatar="🐯" role="menuitem" aria-label="Tiger">🐯</button>
-      <button class="avatar-option" data-avatar="🦁" role="menuitem" aria-label="Lion">🦁</button>
-      <button class="avatar-option" data-avatar="🐸" role="menuitem" aria-label="Frog">🐸</button>
-      <button class="avatar-option" data-avatar="🐵" role="menuitem" aria-label="Monkey">🐵</button>
+  <div class="avatar-picker-container">
+    <button id="avatarToggleBtn" title="Pick your avatar">🐾 Pick Avatar</button>
+    <div id="avatarOptions" class="avatar-options hidden">
+      <button class="avatar-option" data-avatar="🐶">🐶</button>
+      <button class="avatar-option" data-avatar="🐱">🐱</button>
+      <button class="avatar-option" data-avatar="🦊">🦊</button>
+      <button class="avatar-option" data-avatar="🐻">🐻</button>
+      <button class="avatar-option" data-avatar="🐼">🐼</button>
+      <button class="avatar-option" data-avatar="🐨">🐨</button>
+      <button class="avatar-option" data-avatar="🐯">🐯</button>
+      <button class="avatar-option" data-avatar="🦁">🦁</button>
+      <button class="avatar-option" data-avatar="🐸">🐸</button>
+      <button class="avatar-option" data-avatar="🐵">🐵</button>
     </div>
-    <div id="selectedAvatarDisplay" class="selected-avatar" aria-live="polite" aria-atomic="true">🐾</div>
+    <div id="selectedAvatarDisplay" class="selected-avatar">🐾</div>
   </div>
 
-  <main class="container" role="main">
+  <div class="container">
     <h1 class="title">🎬 Scenez</h1>
     <p class="subtitle">Draw. Laugh. Repeat.</p>
 
-    <form class="form" onsubmit="return false;" aria-label="Join or create game room">
-      <input id="name" name="name" type="text" placeholder="Your name" autocomplete="off" required aria-required="true" />
-      <input id="room" name="room" type="text" placeholder="Room code (e.g., AB12)" autocomplete="off" />
-      <button type="button" onclick="joinRoom()">Join Room</button>
-      <button type="button" onclick="createRoom()">Create Room</button>
-    </form>
+    <div class="form">
+      <input id="name" placeholder="Your name" autocomplete="off" />
+      <input id="room" placeholder="Room code (e.g., AB12)" autocomplete="off" />
+      <button onclick="joinRoom()">Join Room</button>
+      <button onclick="createRoom()">Create Room</button>
+    </div>
 
-    <section class="players-list" aria-live="polite" aria-relevant="additions" aria-label="Players in room">
-      <h2>🎮 Players in Room:</h2>
+    <div class="players-list">
+      <h3>🎮 Players in Room:</h3>
       <ul id="players"></ul>
-    </section>
+    </div>
 
     <div class="start-button-container">
-      <button id="startGameBtn" type="button" onclick="startManualGame()" disabled>Start Game</button>
-      <!-- Disabled by default, enable in JS when ready -->
+      <button id="startGameBtn" onclick="startManualGame()">Start Game</button>
     </div>
-  </main>
-
-  <div class="bg-anim" aria-hidden="true">
-    <div></div><div></div><div></div><div></div><div></div>
   </div>
 
-  <!-- Voting page template -->
-  <template id="votingPageTemplate">
-    <section class="voting-page" role="dialog" aria-modal="true" aria-labelledby="votingTitle">
-      <div class="voting-bg"></div> <!-- ✨ Animated background layer -->
+  <div class="bg-anim">
+    <div></div><div></div><div></div><div></div><div></div>
+  </div>
+<!-- Voting page template -->
+<template id="votingPageTemplate">
+  <div class="voting-page">
+    <div class="voting-bg"></div> <!-- ✨ Animated background layer -->
+    
+    <h1 class="title">🎨 Vote for the Best Drawing</h1>
+    <p class="subtitle">Hover and click to vote. Only one vote allowed.</p>
+    
+    <div class="gallery-grid" id="galleryGrid"></div>
+    <div id="voteResults" class="vote-results"></div>
+    
+    <button id="backToLobbyBtn" class="back-button">⬅ Back to Lobby</button>
+  </div>
+</template>
 
-      <h1 id="votingTitle" class="title">🎨 Vote for the Best Drawing</h1>
-      <p class="subtitle">Hover and click to vote. Only one vote allowed.</p>
-
-      <div class="gallery-grid" id="galleryGrid" role="list"></div>
-      <div id="voteResults" class="vote-results" aria-live="polite" aria-atomic="true"></div>
-
-      <button id="backToLobbyBtn" class="back-button" type="button">⬅ Back to Lobby</button>
-    </section>
-  </template>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
@@ -80,8 +78,7 @@
     selectedAvatarDisplay.textContent = selectedAvatar;
 
     avatarToggleBtn.addEventListener('click', () => {
-      const isHidden = avatarOptions.classList.toggle('hidden');
-      avatarToggleBtn.setAttribute('aria-expanded', !isHidden);
+      avatarOptions.classList.toggle('hidden');
     });
 
     avatarOptions.querySelectorAll('.avatar-option').forEach(btn => {
@@ -92,7 +89,6 @@
           localStorage.setItem('selectedAvatar', selectedAvatar);
           selectedAvatarDisplay.textContent = selectedAvatar;
           avatarOptions.classList.add('hidden');
-          avatarToggleBtn.setAttribute('aria-expanded', false);
         }
       });
     });
