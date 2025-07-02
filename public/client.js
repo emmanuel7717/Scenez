@@ -143,7 +143,7 @@ function speakText(text, onEnd) {
   }
 }
 
-// Slideshow function — full code unchanged except the ending replaced
+// Slideshow function — full code unchanged except no timer visible
 function startSlideshow(category, slides) {
   document.body.innerHTML = `
     <div class="header-bar"><h1>Scenez</h1></div>
@@ -387,7 +387,7 @@ function showVotingPage(category, slides) {
   });
 }
 
-// When game starts, build drawing interface (your existing code)
+// When game starts, build drawing interface with timer visible above canvas
 socket.on('start-game', ({ category, players }) => {
   const name = document.getElementById('name').value.trim();
   const me = players.find(p => p.name === name);
@@ -401,29 +401,23 @@ socket.on('start-game', ({ category, players }) => {
         <h3>Players</h3><ul id="playerList" style="list-style:none; padding: 0; margin: 0;"></ul>
       </div>
       <div class="canvas-area" style="flex-grow: 1; padding: 10px; display:flex; flex-direction: column; align-items: center;">
-       <canvas id="drawCanvas" width="900" height="600" style="background:#022c43; border-radius: 10px; box-shadow: 0 0 15px #00f2fe;"></canvas>
-<div class="canvas-area">
-  <!-- ⬆️ MOVED TO TOP -->
-  <div class="controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
-    <label style="color:#00f2fe;">Color: <input type="color" id="colorPicker" value="#000000"></label>
-    <label style="color:#00f2fe;">Brush Size: <input type="range" id="brushSize" min="1" max="20" value="3"></label>
-    <button id="clearBtn" style="background:#00f2fe; color:#000; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer;">Clear</button>
-  </div>
-  <p id="status" class="status-text" style="margin-top: 10px; font-weight: bold;"></p>
-  <p id="timer" style="font-weight: bold; font-size: 1.1em; margin-top: 8px;">Time left: 1:30</p>
+        <p id="timer" style="font-weight: bold; font-size: 1.3em; margin-bottom: 10px;">Time left: 1:30</p>
+        <canvas id="drawCanvas" width="900" height="600" style="background:#022c43; border-radius: 10px; box-shadow: 0 0 15px #00f2fe;"></canvas>
 
-  <!-- DRAWING CANVAS -->
-  <canvas id="drawCanvas"></canvas>
-</div>
-
-<!-- INFO SIDEBAR stays on the right -->
-<div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
-  <h2>Category</h2>
-  <p>${category}</p>
-  <h2>Your Scene</h2>
-  <p class="scene-text">${me.assignedScene || 'No scene assigned'}</p>
-</div>
-
+        <div class="controls" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+          <label style="color:#00f2fe;">Color: <input type="color" id="colorPicker" value="#000000"></label>
+          <label style="color:#00f2fe;">Brush Size: <input type="range" id="brushSize" min="1" max="20" value="3"></label>
+          <button id="clearBtn" style="background:#00f2fe; color:#000; border:none; padding: 6px 12px; border-radius: 6px; cursor:pointer;">Clear</button>
+        </div>
+        <p id="status" class="status-text" style="margin-top: 10px; font-weight: bold;"></p>
+      </div>
+      <div class="info-sidebar" style="width: 220px; border-left: 2px solid #004466; padding: 10px;">
+        <h2>Category</h2>
+        <p>${category}</p>
+        <h2>Your Scene</h2>
+        <p class="scene-text">${me.assignedScene || 'No scene assigned'}</p>
+      </div>
+    </div>
   `;
 
   const canvas = document.getElementById('drawCanvas');
@@ -477,6 +471,9 @@ socket.on('start-game', ({ category, players }) => {
       document.getElementById('clearBtn').disabled = true;
       document.getElementById('colorPicker').disabled = true;
       document.getElementById('brushSize').disabled = true;
+
+      // Hide timer once drawing ends
+      timerEl.style.display = 'none';
 
       // Send drawing to server
       const imageData = canvas.toDataURL('image/png');
